@@ -1,0 +1,94 @@
+import smtplib, ssl
+import time
+import os
+import requests
+import selectorlib
+import sqlite3
+
+"INSERT INTO events VALUES('Tigers','Tiger city','2088.10.14')"
+"DELETE FROM events WHERE band = 'Lion'"
+
+
+URL = "http://programmer100.pythonanywhere.com/tours/"
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
+
+connection = sqlite3.connect("data.db")
+
+def scrape(url):
+    """Scrape the page souce from the URL"""
+    response = requests.get(url, headers=HEADERS)
+    source = response.text
+    return source
+
+def extract(source):
+    extractor=selectorlib.Extractor.from_yaml_file("extract.yaml")
+    value = extractor.extract(source)["tours"]
+    return value
+
+
+def send_email(message):
+    host = "smtp.gmail.com"
+    port = 465
+
+    username = "sanjanaarj2003@gmail.com"
+    password = "jgan njxs gszm xode"
+
+    receiver = "sanjanaarj2003@gmail.com"
+    context = ssl.create_default_context()
+
+    with smtplib.SMTP_SSL(host, port, context=context) as server:
+        server.login(username, password)
+        server.sendmail(username, receiver, message)
+    print("Email was sent!")
+
+def store(extracted):
+    row = extracted.split(",")
+    row = [item.strip() for item in row]
+    cursor = connection.cursor()
+    cursor.execute("INSERT INTO events VALUES(?,?,?)", row)
+    connection.commit()
+    # with open("data.txt","a") as file:
+    #     file.write(extracted+"\n")
+
+def read(extracted):
+    row = extracted.split(",")
+    row=[item.strip() for item in row]
+    cursor = connection.cursor()
+    cursor.execute("SELECT * FROM events WHERE date = '2088.10.15'")
+    rows = cursor.fetchall()
+    print(rows)
+    return rows
+    # with open("data.txt","r") as file:
+    #     return file.read()
+
+# if __name__ == "__main__":
+#     scraped = scrape(URL)
+#     extracted = extract(scraped)
+#     print(extracted)
+#
+#     content = read(extracted)
+#     if extracted != "No upcoming tours":
+#         if extracted not in content:    #If the output is not stored in extracted it prints "the email was sent message", else just appends to data.txt.
+#             store(extracted)
+#             send_email(message="Hey, new event was found!")
+
+
+
+#To execute the program non stop
+if __name__ == "__main__":
+    while True:
+        scraped = scrape(URL)
+        extracted = extract(scraped)
+        print(extracted)
+
+        content = read(extracted)
+        if extracted != "No upcoming tours":
+            if extracted not in content:  # If the output is not stored in extracted it prints the email was sent message, else just appends.
+                store(extracted)
+                send_email(message="Hey, new event was found!")
+        time.sleep(2)
+
+
+
+# RUN the python file keepimg the sqlite db browser closed else produces database is locked error
